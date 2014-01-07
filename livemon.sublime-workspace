@@ -1,0 +1,209 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"buffers":
+	[
+		{
+			"contents": "#define _GNU_SOURCE\n#include <stdio.h>\n#include <unistd.h>\n#include <stdlib.h>\n#include <string.h>\n#include <errno.h>\n#include <assert.h>\n#define STAT_F \"/proc/stat\"\n#define DISKSTAT_F \"/proc/diskstat\"\n#define ERR_MSG_LEN 1024\n#define EXIT_FAILURE_MALLOC 1\n#define EXIT_FAILURE_FILE 1\n#define DEBUG 1\n#define MAX_STR_SIZE 128\n#define MAX_DISK_NAME 32\ntypedef unsigned long long int t_stat;\n\nstruct cpu_stats {\n    t_stat user;         // system spent in user mode\n    t_stat nice;         // user mode with low priority (nice)\n    t_stat system;       // system mode\n    t_stat idle;         // idle tasks\n    t_stat iowait;       // iowait time \n    t_stat irq;          // time servicing  interrupts\n    t_stat softirq;      // time servicing softirqs\n    t_stat steal;        // stolen time, which is the time spent in other operating systems when running in a virtualized environment\n    t_stat guest;        // is the time spent running a virtual CPU for guest operating systems under the  control of the Linux kernel\n};\n\nstruct common_stats {\n    t_stat intr; // total number of interrupts \n    t_stat ctxt; // total number os context switches\n    t_stat btime; // time since boot \n    t_stat processes; // total number of processes since boot\n    t_stat procs_running; // total number of running processes \n    t_stat procs_blocked; // total numbe of blocked processes \n    t_stat softirq;  \n};\n\n\n\nstruct iostats { \n    t_stat rds; //  number of reads completed successfully \n    t_stat rds_merged; // Number of reads which are merged \n    t_stat rds_sectors; // Number of sectors read \n    t_stat rds_time; // Total Milliseconds spent on all reads \n    t_stat wrs; //  number of writes completed successfully \n    t_stat wrs_merged; // Number of writes which are merged \n    t_stat wrs_sectors; // Number of sectors written \n    t_stat wrs_time; // Total Milliseconds spent on all writes \n    t_stat io_current; // I/Os currently in progress\n    t_stat io_time; // Milliseconds spent on I/O, increases as long as io_current is non_zero\n    t_stat io_weighted_time;  // weighted # of milliseconds spent doing I/Os\n};\n\n\ntypedef struct cpu_stats cpu_stat_t; \ntypedef cpu_stat_t *  cpu_stat_p; \ntypedef struct common_stats common_stats_t;\ntypedef common_stats_t * common_stats_p;\ntypedef struct iostats  diskstats_t; \ntypedef diskstats_t * diskstats_p; \n\nstruct disk { \n    char name[MAX_DISK_NAME]; // \n    short p_flag; // 0 if whole disk and \n    diskstats_p stats; \n    struct disk * next; \n};\n\ntypedef struct disk * disk_p; \ndisk_p disk_root = NULL; \n\ndisk_p get_root(){ \n    return disk_root; \n}\n\n\n\nvoid * lmalloc( int size ) {\n    void * p = malloc(size); \n    if(p==NULL) { \n        fprintf (stderr, \"%s: Couldn't issue memory Malloc() failed%s\\n\",\n            program_invocation_short_name, strerror (errno));\n            exit (EXIT_FAILURE_MALLOC);\n    }\n    return p; \n}\n\nvoid *open_r(char *file) { \n    FILE *fp =  fopen(file, \"r\");\n    if (fp == NULL ) {\n        fprintf (stderr, \"%s: Couldn't open the File %s; %s\\n\",\n            program_invocation_short_name, file, strerror (errno));\n            exit (EXIT_FAILURE_FILE);\n    }\n    return fp;\n}\n\nvoid rd_proc_stats( cpu_stat_p cpu_all , common_stats_p common_stats , FILE * statfp ) {\n    char *lineptr = NULL ; \n    ssize_t ret; \n    size_t n = 0 ;\n    int ncpu = sysconf(_SC_NPROCESSORS_ONLN); \n    ret  = getline(&lineptr, &n , statfp ); \n    if ( ret == -1 ) {\n          perror(\"Failed to read File\" ); \n    }\n    sscanf(lineptr,\"cpu  %llu %llu %llu %llu %llu %llu %llu %llu %llu\\n\",&(cpu_all->user),&(cpu_all->nice),&(cpu_all->system),\\\n        &(cpu_all->idle),&(cpu_all->iowait), &(cpu_all->irq),&(cpu_all->softirq),&(cpu_all->steal),&(cpu_all->guest)); \n    free(lineptr); \n    lineptr = NULL ;\n    short all_cpu_stats = NULL; \n    if ( all_cpu_stats ) { \n        // section to calculate all cpus activities \n    } else { \n        int c = ncpu; \n        while(c > 0) {\n            if ( getline(&lineptr,&n,statfp) != -1 )  {\n                free(lineptr); \n                lineptr = NULL; \n                c--; \n            }\n        }\n    }\n    // Calculate generic stats\n    while( getline(&lineptr,&n,statfp) > 0 ) { \n        char * str; \n        str = (char *) lmalloc(MAX_STR_SIZE); \n        t_stat val; \n        sscanf(lineptr,\"%s %llu\",str,&val);\n        if ( strcmp( str, \"intr\") == 0 ) \n            common_stats->intr = val;          \n        else if ( strcmp (str,\"ctxt\") == 0 ) \n            common_stats->ctxt = val; \n        else if ( strcmp( str,\"btime\") == 0 ) \n            common_stats->btime = val; \n        else if ( strcmp(str,\"processes\") == 0 ) \n            common_stats->processes = val;\n        else if ( strcmp (str,\"procs_running\")  == 0) \n            common_stats->procs_running = val;\n        else if ( strcmp (str,\"procs_blocked\") == 0 ) \n            common_stats->procs_blocked = val; \n        free(lineptr); \n        free(str); \n        lineptr = NULL; \n    }\n}\n\nvoid rd_diskstats ( diskstats_p diskstats, FILE * fp)  {\n    char *lineptr = NULL; \n    size_t n = 0; \n    while ( getline(&lineptr,&n,fp) > 0 ) { \n        \n\n        \n    }\n       \n}\n\nint main(int argc, char *argv[]) { \n    long hz_unit = sysconf(_SC_CLK_TCK); \n    \n    cpu_stat_p cpu_all = (cpu_stat_p) lmalloc(sizeof(cpu_stat_t));\n    common_stats_p common_stats = (common_stats_p) lmalloc(sizeof(common_stats_t)); \n\n    FILE * statfp =  open_r(STAT_F); \n    while(1) { \n        rd_proc_stats(cpu_all,common_stats, statfp ); \n#ifdef DEBUG \n    printf(\"CPU_STATS: user:%llu, nice:%llu , system:%llu , iowait:%llu , irq:%llu , softirq:%llu , steal:%llu , guest: %llu \\n\",\\\n        cpu_all->user,cpu_all->nice, cpu_all->system , cpu_all->iowait,cpu_all->irq,cpu_all->softirq,cpu_all->steal,cpu_all->guest );\n#endif\n        rewind(statfp);\n        int interval = (argv[1]) ? atoi(argv[1]) : 100000 ;  \n        usleep(interval); \n    }\n         \n}\n",
+			"file": "proc_stat.c",
+			"file_size": 5907,
+			"file_write_time": 1376981155000000,
+			"settings":
+			{
+				"buffer_size": 5916,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "diskstats",
+			"settings":
+			{
+				"buffer_size": 1229,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/home/saurabhver/code/livemon/.proc_stat.c.swp"
+	],
+	"find":
+	{
+		"height": 0.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "proc_stat.c",
+					"settings":
+					{
+						"buffer_size": 5916,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1405,
+								1405
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 510.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "diskstats",
+					"settings":
+					{
+						"buffer_size": 1229,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Text/Plain text.tmLanguage",
+							"tab_size": 3,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 0.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"replace":
+	{
+		"height": 0.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 150.0,
+	"status_bar_visible": true
+}
