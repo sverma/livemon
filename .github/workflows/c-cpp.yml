@@ -17,4 +17,6 @@ jobs:
       run: make proc_stat
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
-      path: proc_stat
+      with: 
+          path: proc_stat
+          name: proc_stat
