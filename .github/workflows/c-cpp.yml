@@ -14,4 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: make
-      run: make
+      run: make proc_stat
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      path: proc_stat
