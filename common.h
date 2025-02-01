@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <sys/time.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -6,6 +7,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdint.h>
+#include <libgen.h>
 
 #define STAT_F "/proc/stat"
 #define DISKSTAT_F "/proc/diskstats"

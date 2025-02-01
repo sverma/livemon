@@ -4,7 +4,7 @@ void * lmalloc( int size ) {
     void * p = malloc(size); 
     if(p==NULL) { 
         fprintf (stderr, "%s: Couldn't issue memory Malloc() failed%s\n",
-            program_invocation_short_name, strerror (errno));
+            strerror (errno));
             exit (EXIT_FAILURE_MALLOC);
     }
     return p; 
@@ -14,7 +14,7 @@ void *open_r(char *file) {
     FILE *fp =  fopen(file, "r");
     if (fp == NULL ) {
         fprintf (stderr, "%s: Couldn't open the File %s; %s\n",
-            program_invocation_short_name, file, strerror (errno));
+	    file, strerror (errno));
             exit (EXIT_FAILURE_FILE);
     }
     return fp;
